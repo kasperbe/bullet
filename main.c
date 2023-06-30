@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <time.h>
 
 
 #define BUFFER_SIZE = 1024;
@@ -47,7 +48,6 @@ int main(int argc, char *argv[]) {
 
   for(int i = 2; i < argc; i++) {
     if(!strcmp(argv[i], "-t")) {
-      printf("Hit T\n");
       t = atoi(argv[i+1]);
     }
 
@@ -56,27 +56,38 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  printf("flags: n: %d t: %d, url: %s", n, t, url);
-
+  printf("Sending %d requests over %d seconds, at %d requests per second\n", n, t, n/t);
 
   char buffer[1024];
 
-  for(int i=0; i<t; i++) {
+  for(int i=0; i<n; i++) {
     int sock = sock_connect(url, 80);
     if(sock == -1) {
       printf("can't connect to socket");
       exit(1);
     }
-    printf("\n\nSTARTING NEW REUQEST \n\n\n");
-    struct timeval tv = {n/t, 0}; 
+
+
+    struct timeval tv = {0, 1000/(n/t)}; 
     if (select(0, NULL, NULL, NULL, &tv) < 0) perror("select");
 
     write(sock, "GET /\r\n", strlen("GET /\r\n"));
     bzero(buffer, 1024);
 
-    while(read(sock, buffer, 1024-1) != 0) {
-//      fprintf(stderr, "%s", buffer);
-        printf("Received response");
+    if(read(sock, buffer, 1024-1) != 0) {
+      time_t timer;
+      char tbuf[26];
+      struct tm* tm_info;
+
+      timer = time(NULL);
+      tm_info = localtime(&timer);
+
+      strftime(tbuf, 26, "%H:%M:%S", tm_info);
+
+      char *header = strtok(buffer, " ");
+      char *status = strtok(NULL, "\n");
+
+      printf("[%s]: %s\n", tbuf, status);
       bzero(buffer, 1024);
     }
 
